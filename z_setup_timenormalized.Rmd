@@ -18,32 +18,11 @@ library(knitr)   # Mainly... so we can use kable()
 # check that each package exists and actually install any that are missing before loading
 # the package.
 if (!require("pacman")) install.packages("pacman")
-pacman::p_load(tidyverse,         # Includes dplyr, ggplot2, and others; very key!
+pacman::p_load(googleAnalyticsR,  # How we actually get the Google Analytics data
+               tidyverse,         # Includes dplyr, ggplot2, and others; very key!
                devtools,          # Generally handy
-               googleVis,         # Useful for some of the visualizations
+               plotly,            # We're going to make the charts interactive
                scales)            # Useful for some number formatting in the visualizations
-
-# A function to check that a sufficiently current version of a specific package is 
-# installed and loaded. This isn't particularly elegant, but it works.
-package_check <- function(package, min_version, github_location){
-  # Check if ANY version of the package is installed. This is clunky, but p_load_current_gh
-  # wasn't playing nice (and this does need some conditional checking.)
-  if(package %in% rownames(installed.packages())){
-    # IF a version of the package is already installed, then check the *version* of that
-    # package to make sure it's current enough. If it'snot, then re-install from GitHub
-    if(packageVersion(package) < min_version) {
-      devtools::install_github(github_location)
-    }
-  } else {
-    devtools::install_github(github_location)
-  }
-  # Load the package
-  library(package, character.only = TRUE)
-}
-
-# As needed, install and load googleAnalyticsR and ganalytics from GitHub
-package_check("googleAnalyticsR", "0.5.0.9001", "MarkEdmondson1234/googleAnalyticsR")
-package_check("ganalytics", "0.10.4.9000", "jdeboer/ganalytics")
 
 # Authorize GA. Depending on if you've done this already and a .ga-httr-oauth file has
 # been saved or not, this may pop you over to a browser to authenticate.
@@ -51,11 +30,24 @@ ga_auth(token = ".ga-httr-oauth")
 
 # Set the view ID and the date range. If you want to, you can swap out the Sys.getenv()
 # call and just replace that with a hardcoded value for the view ID. And, the start 
-# and end date are currently set to choose the last 30 days, but those can be 
+# and end date are currently set to choose the last 365 days, but those can be 
 # hardcoded as well.
 view_id <- Sys.getenv("GA_VIEW_ID")
-start_date <- Sys.Date() - 31        # 30 days back from yesterday
-end_date <- Sys.Date() - 1           # Yesterday
+start_date <- Sys.Date() - 365        # The last year
+end_date <- Sys.Date() - 1            # Yesterday
+
+# We're going to have R try to figure out when a page actually launched by finding the
+# first day (in the data that is pulled) where the page had at least X unique pageviews.
+# So, we're going to set "X" here. This may be something to fiddle around with for your
+# site (the larger the site, the larger this number can be).
+first_day_pageviews_min <- 2
+
+# We also don't want to include pages that have total traffic (daily unique pageviews)
+# that are relatively low. So, set a cutoff for those, too.
+total_unique_pageviews_cutoff <- 500
+
+# Finally, we want to set how many "days from launch" we want to include in our display.
+days_live_range <- 60
 
 ```
 
